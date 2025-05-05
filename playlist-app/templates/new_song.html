@@ -3,5 +3,14 @@
 {% block content %}
 
 <h1>Add a form that when submitted creates a new song!</h1>
-
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <label for="title">Title</label>
+    {{ form.title() }}
+    
+    <label for="artist">Artist</label>
+    {{ form.artist() }}
+    
+    <button type="submit">Add Song</button>
+</form>
 {% endblock %}
