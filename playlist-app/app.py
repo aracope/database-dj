@@ -8,11 +8,9 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///playlist-app'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = True
-
+app.config['SECRET_KEY'] = "I'LL NEVER TELL!!"
 connect_db(app)
 db.create_all()
-
-app.config['SECRET_KEY'] = "I'LL NEVER TELL!!"
 
 # Having the Debug Toolbar show redirects explicitly is often useful;
 # however, if you want to turn it off, you can uncomment this line:
@@ -21,17 +19,14 @@ app.config['SECRET_KEY'] = "I'LL NEVER TELL!!"
 
 debug = DebugToolbarExtension(app)
 
-
 @app.route("/")
 def root():
     """Homepage: redirect to /playlists."""
 
     return redirect("/playlists")
 
-
 ##############################################################################
 # Playlist routes
-
 
 @app.route("/playlists")
 def show_all_playlists():
@@ -46,8 +41,7 @@ def show_playlist(playlist_id):
     """Show detail on specific playlist."""
 
     playlist = Playlist.query.get_or_404(playlist_id)
-    return render_template("playlist_detail.html", playlist=playlist)
-
+    return render_template("playlist.html", playlist=playlist)
 
 @app.route("/playlists/add", methods=["GET", "POST"])
 def add_playlist():
@@ -73,7 +67,6 @@ def add_playlist():
 ##############################################################################
 # Song routes
 
-
 @app.route("/songs")
 def show_all_songs():
     """Show list of songs."""
@@ -88,8 +81,6 @@ def show_song(song_id):
 
     song = Song.query.get_or_404(song_id)
     return render_template("song.html", song=song)
-
-
 
 @app.route("/songs/add", methods=["GET", "POST"])
 def add_song():
@@ -114,28 +105,23 @@ def add_song():
 
 @app.route("/playlists/<int:playlist_id>/add-song", methods=["GET", "POST"])
 def add_song_to_playlist(playlist_id):
-    """Add a playlist and redirect to list."""
+    """Add a song to a playlist and redirect to playlist detail."""
 
     playlist = Playlist.query.get_or_404(playlist_id)
     form = NewSongForPlaylistForm()
 
     # Restrict form to songs not already on this playlist
-    curr_on_playlist = PlaylistSong.query.filter_by(playlist_id=playlist_id).all()
-    curr_song_ids = [ps.song_id for ps in curr_on_playlist]
-    form.song.choices = [(song.id, song.title) for song in Song.query.filter(Song.id.notin_(curr_song_ids)).all()]
+    curr_song_ids = [s.id for s in playlist.songs]
+    songs_not_in_playlist = Song.query.filter(~Song.id.in_(curr_song_ids)).all()
+    form.song.choices = [(s.id, f"{s.title} by {s.artist}") for s in songs_not_in_playlist]
 
     if form.validate_on_submit():
         song_id = form.song.data
-        song = Song.query.get_or_404(song_id)
-        
-        # Create the relationship in the PlaylistSong table
-        playlist_song = PlaylistSong(playlist_id=playlist_id, song_id=song.id)
-        db.session.add(playlist_song)
+        new_link = PlaylistSong(playlist_id=playlist.id, song_id=song_id)
+        db.session.add(new_link)
         db.session.commit()
-          # ADD THE NECESSARY CODE HERE FOR THIS ROUTE TO WORK
-
         return redirect(f"/playlists/{playlist_id}")
-
+        
     return render_template("add_song_to_playlist.html",
                              playlist=playlist,
                              form=form)
